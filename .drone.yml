@@ -76,6 +76,18 @@ steps:
   commands:
   - ./release/linux/amd64/drone-docker --help
 
+- name: dryrun
+  pull: always
+  image: plugins/docker:18
+  settings:
+    daemon_off: false
+    dockerfile: docker/docker/Dockerfile.linux.amd64
+    dry_run: true
+    repo: plugins/docker
+    tags: linux-amd64
+  when:
+    event: [push, pull_request]
+
 - name: publish
   image: plugins/docker:18
   settings:
@@ -83,9 +95,13 @@ steps:
     auto_tag_suffix: linux-amd64
     daemon_off: false
     dockerfile: docker/docker/Dockerfile.linux.amd64
+    password:
+      from_secret: docker_password
     repo: immawanderer/drone-docker
-    dry_run: true
+    username:
+      from_secret: docker_username
   when:
+    branch: [edge-dind]
     event:
       exclude:
       - pull_request
