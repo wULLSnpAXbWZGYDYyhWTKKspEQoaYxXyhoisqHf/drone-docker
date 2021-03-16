@@ -91,23 +91,7 @@ steps:
     repo: plugins/docker
     tags: linux-amd64
   when:
-    event:
-    - pull_request
-
-- name: publish
-  pull: always
-  image: plugins/docker:18
-  settings:
-    auto_tag: true
-    auto_tag_suffix: linux-amd64
-    daemon_off: false
-    dockerfile: docker/docker/Dockerfile.linux.amd64
-    repo: immawanderer/drone-docker
-    dry_run: true
-  when:
-    event:
-      exclude:
-      - pull_request
+    event: [push, pull_request]
 
 trigger:
   ref:
