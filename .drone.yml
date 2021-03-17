@@ -83,19 +83,19 @@ steps:
 
 - name: dryrun
   pull: always
-  image: plugins/docker:18
+  image: plugins/docker:linux-amd64
   settings:
     daemon_off: false
     dockerfile: docker/docker/Dockerfile.linux.amd64
     dry_run: true
-    repo: plugins/docker
-    tags: linux-amd64
+    repo: immawanderer/drone-docker
+    tags: [linux-amd64, edge-dind]
   when:
     event: [push, pull_request]
 
 - name: publish
   pull: always
-  image: plugins/docker:18
+  image: plugins/docker:linux-amd64
   settings:
     auto_tag: true
     auto_tag_suffix: linux-amd64
