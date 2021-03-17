@@ -92,15 +92,20 @@ steps:
   pull: always
   image: plugins/docker:linux-amd64
   settings:
-    auto_tag: true
-    auto_tag_suffix: linux-amd64
     daemon_off: false
     dockerfile: docker/docker/Dockerfile.linux.amd64
-    password:
-      from_secret: docker_password
+    tags:
+      - latest
+      - edge-dind
+      - linux-amd64
+      - ${DRONE_COMMIT_SHA:0:8}
+      - ${DRONE_COMMIT_SHA:0:8}-edge-dind
+      - ${DRONE_COMMIT_SHA:0:8}-linux-amd64
     repo: immawanderer/drone-docker
     username:
       from_secret: docker_username
+    password:
+      from_secret: docker_password
   when:
     branch: [edge-dind]
     event:
