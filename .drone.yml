@@ -9,6 +9,7 @@ platform:
 steps:
 - name: vet
   image: golang:1.17.3
+  pull: always
   commands:
   - go vet ./...
   environment:
@@ -19,6 +20,7 @@ steps:
 
 - name: test
   image: golang:1.17.3
+  pull: always
   commands:
   - go test -cover ./...
   environment:
@@ -50,6 +52,7 @@ platform:
 steps:
 - name: build-push
   image: golang:1.17.3
+  pull: always
   commands:
   - "go build -v -ldflags \"-X main.version=${DRONE_COMMIT_SHA:0:8}\" -a -tags netgo -o release/linux/amd64/drone-docker ./cmd/drone-docker"
   environment:
@@ -62,6 +65,7 @@ steps:
 
 - name: build-tag
   image: golang:1.17.3
+  pull: always
   commands:
   - "go build -v -ldflags \"-X main.version=${DRONE_TAG##v}\" -a -tags netgo -o release/linux/amd64/drone-docker ./cmd/drone-docker"
   environment:
@@ -73,6 +77,7 @@ steps:
 
 - name: executable
   image: golang:1.17.3
+  pull: always
   commands:
   - ./release/linux/amd64/drone-docker --help
 
