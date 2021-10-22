@@ -37,6 +37,8 @@ func main() {
 		lifecyclePolicy  = getenv("PLUGIN_LIFECYCLE_POLICY")
 		repositoryPolicy = getenv("PLUGIN_REPOSITORY_POLICY")
 		assumeRole       = getenv("PLUGIN_ASSUME_ROLE")
+		externalId       = getenv("PLUGIN_EXTERNAL_ID")
+		scanOnPush       = parseBoolOrDefault(false, getenv("PLUGIN_SCAN_ON_PUSH"))
 	)
 
 	// set the region
@@ -56,7 +58,7 @@ func main() {
 		log.Fatal(fmt.Sprintf("error creating aws session: %v", err))
 	}
 
-	svc := getECRClient(sess, assumeRole)
+	svc := getECRClient(sess, assumeRole, externalId)
 	username, password, defaultRegistry, err := getAuthInfo(svc)
 
 	if registry == "" {
@@ -72,9 +74,13 @@ func main() {
 	}
 
 	if create {
-		err = ensureRepoExists(svc, trimHostname(repo, registry))
+		err = ensureRepoExists(svc, trimHostname(repo, registry), scanOnPush)
 		if err != nil {
 			log.Fatal(fmt.Sprintf("error creating ECR repo: %v", err))
+		}
+		err = updateImageScannningConfig(svc, trimHostname(repo, registry), scanOnPush)
+		if err != nil {
+			log.Fatal(fmt.Sprintf("error updating scan on push for ECR repo: %v", err))
 		}
 	}
 
@@ -118,9 +124,10 @@ func trimHostname(repo, registry string) string {
 	return repo
 }
 
-func ensureRepoExists(svc *ecr.ECR, name string) (err error) {
+func ensureRepoExists(svc *ecr.ECR, name string, scanOnPush bool) (err error) {
 	input := &ecr.CreateRepositoryInput{}
 	input.SetRepositoryName(name)
+	input.SetImageScanningConfiguration(&ecr.ImageScanningConfiguration{ScanOnPush: &scanOnPush})
 	_, err = svc.CreateRepository(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == ecr.ErrCodeRepositoryAlreadyExistsException {
@@ -130,6 +137,15 @@ func ensureRepoExists(svc *ecr.ECR, name string) (err error) {
 	}
 
 	return
+}
+
+func updateImageScannningConfig(svc *ecr.ECR, name string, scanOnPush bool) (err error) {
+	input := &ecr.PutImageScanningConfigurationInput{}
+	input.SetRepositoryName(name)
+	input.SetImageScanningConfiguration(&ecr.ImageScanningConfiguration{ScanOnPush: &scanOnPush})
+	_, err = svc.PutImageScanningConfiguration(input)
+
+	return err
 }
 
 func uploadLifeCyclePolicy(svc *ecr.ECR, lifecyclePolicy string, name string) (err error) {
@@ -193,11 +209,19 @@ func getenv(key ...string) (s string) {
 	return
 }
 
-func getECRClient(sess *session.Session, role string) *ecr.ECR {
+func getECRClient(sess *session.Session, role string, externalId string) *ecr.ECR {
 	if role == "" {
 		return ecr.New(sess)
 	}
-	return ecr.New(sess, &aws.Config{
-		Credentials: stscreds.NewCredentials(sess, role),
-	})
+	if externalId != "" {
+		return ecr.New(sess, &aws.Config{
+			Credentials: stscreds.NewCredentials(sess, role, func(p *stscreds.AssumeRoleProvider) {
+				p.ExternalID = &externalId
+			}),
+		})
+	} else {
+		return ecr.New(sess, &aws.Config{
+			Credentials: stscreds.NewCredentials(sess, role),
+		})
+	}
 }
