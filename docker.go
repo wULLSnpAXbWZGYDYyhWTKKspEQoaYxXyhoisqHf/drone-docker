@@ -138,10 +138,10 @@ func (p Plugin) Exec() error {
 
 	// create Auth Config File
 	if p.Login.Config != "" {
-		os.MkdirAll(dockerHome, 0600)
+		os.MkdirAll(dockerHome, 0o600)
 
 		path := filepath.Join(dockerHome, "config.json")
-		err := ioutil.WriteFile(path, []byte(p.Login.Config), 0600)
+		err := ioutil.WriteFile(path, []byte(p.Login.Config), 0o600)
 		if err != nil {
 			return fmt.Errorf("Error writing config.json: %s", err)
 		}

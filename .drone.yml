@@ -8,7 +8,11 @@ platform:
 
 steps:
 - name: vet
+<<<<<<< HEAD
   image: golang:1.17.3
+=======
+  image: golang:1.13
+>>>>>>> 3e0e3c8 (bump dind to 20.10.9)
   commands:
   - go vet ./...
   environment:
@@ -18,7 +22,11 @@ steps:
     path: /go
 
 - name: test
+<<<<<<< HEAD
   image: golang:1.17.3
+=======
+  image: golang:1.13
+>>>>>>> 3e0e3c8 (bump dind to 20.10.9)
   commands:
   - go test -cover ./...
   environment:
