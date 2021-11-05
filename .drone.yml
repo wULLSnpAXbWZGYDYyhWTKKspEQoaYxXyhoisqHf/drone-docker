@@ -83,7 +83,7 @@ steps:
 
 - name: dryrun
   pull: always
-  image: immawanderer/drone-docker:linux-amd64
+  image: plugins/docker:linux-amd64
   settings:
     daemon_off: true
     dockerfile: docker/docker/Dockerfile.linux.amd64
@@ -95,7 +95,7 @@ steps:
 
 - name: publish
   pull: always
-  image: immawanderer/drone-docker:linux-amd64
+  image: plugins/docker:linux-amd64
   settings:
     daemon_off: false
     dockerfile: docker/docker/Dockerfile.linux.amd64
