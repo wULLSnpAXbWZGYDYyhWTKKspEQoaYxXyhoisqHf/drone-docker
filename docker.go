@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -57,17 +58,46 @@ type (
 		Labels      []string // Label map
 		Link        string   // Git repo link
 		NoCache     bool     // Docker build no-cache
+		Secret      string   // secret keypair
 		AddHost     []string // Docker build add-host
 		Quiet       bool     // Docker build quiet
 	}
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login   Login  // Docker login configuration
-		Build   Build  // Docker build configuration
-		Daemon  Daemon // Docker daemon configuration
-		Dryrun  bool   // Docker push is skipped
-		Cleanup bool   // Docker purge is enabled
+		Login    Login  // Docker login configuration
+		Build    Build  // Docker build configuration
+		Daemon   Daemon // Docker daemon configuration
+		Dryrun   bool   // Docker push is skipped
+		Cleanup  bool   // Docker purge is enabled
+		CardPath string // Card path to write file to
+	}
+
+	Card []struct {
+		ID             string        `json:"Id"`
+		RepoTags       []string      `json:"RepoTags"`
+		ParsedRepoTags []TagStruct   `json:"ParsedRepoTags"`
+		RepoDigests    []interface{} `json:"RepoDigests"`
+		Parent         string        `json:"Parent"`
+		Comment        string        `json:"Comment"`
+		Created        time.Time     `json:"Created"`
+		Container      string        `json:"Container"`
+		DockerVersion  string        `json:"DockerVersion"`
+		Author         string        `json:"Author"`
+		Architecture   string        `json:"Architecture"`
+		Os             string        `json:"Os"`
+		Size           int           `json:"Size"`
+		VirtualSize    int           `json:"VirtualSize"`
+		Metadata       struct {
+			LastTagTime time.Time `json:"LastTagTime"`
+		} `json:"Metadata"`
+		SizeString        string
+		VirtualSizeString string
+		Time              string
+		URL               string `json:"URL"`
+	}
+	TagStruct struct {
+		Tag string `json:"Tag"`
 	}
 )
 
@@ -108,10 +138,10 @@ func (p Plugin) Exec() error {
 
 	// create Auth Config File
 	if p.Login.Config != "" {
-		os.MkdirAll(dockerHome, 0600)
+		os.MkdirAll(dockerHome, 0o600)
 
 		path := filepath.Join(dockerHome, "config.json")
-		err := ioutil.WriteFile(path, []byte(p.Login.Config), 0600)
+		err := ioutil.WriteFile(path, []byte(p.Login.Config), 0o600)
 		if err != nil {
 			return fmt.Errorf("Error writing config.json: %s", err)
 		}
@@ -151,14 +181,9 @@ func (p Plugin) Exec() error {
 	for _, tag := range p.Build.Tags {
 		cmds = append(cmds, commandTag(p.Build, tag)) // docker tag
 
-		if p.Dryrun == false {
+		if !p.Dryrun {
 			cmds = append(cmds, commandPush(p.Build, tag)) // docker push
 		}
-	}
-
-	if p.Cleanup {
-		cmds = append(cmds, commandRmi(p.Build.Name)) // docker rmi
-		cmds = append(cmds, commandPrune())           // docker system prune -f
 	}
 
 	// execute all commands in batch mode.
@@ -176,6 +201,26 @@ func (p Plugin) Exec() error {
 			fmt.Printf("Could not remove image %s. Ignoring...\n", cmd.Args[2])
 		} else if err != nil {
 			return err
+		}
+	}
+
+	// output the adaptive card
+	if err := p.writeCard(); err != nil {
+		fmt.Printf("Could not create adaptive card. %s\n", err)
+	}
+
+	// execute cleanup routines in batch mode
+	if p.Cleanup {
+		// clear the slice
+		cmds = nil
+
+		cmds = append(cmds, commandRmi(p.Build.Name)) // docker rmi
+		cmds = append(cmds, commandPrune())           // docker system prune -f
+
+		for _, cmd := range cmds {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			trace(cmd)
 		}
 	}
 
@@ -258,6 +303,9 @@ func commandBuild(build Build) *exec.Cmd {
 	for _, host := range build.AddHost {
 		args = append(args, "--add-host", host)
 	}
+	if build.Secret != "" {
+		args = append(args, "--secret", build.Secret)
+	}
 	if build.Target != "" {
 		args = append(args, "--target", build.Target)
 	}
@@ -289,6 +337,10 @@ func commandBuild(build Build) *exec.Cmd {
 		}
 	}
 
+	// we need to enable buildkit, for secret support
+	if build.Secret != "" {
+		os.Setenv("DOCKER_BUILDKIT", "1")
+	}
 	return exec.Command(dockerExe, args...)
 }
 
@@ -415,4 +467,12 @@ func commandRmi(tag string) *exec.Cmd {
 // tag so that it can be extracted and displayed in the logs.
 func trace(cmd *exec.Cmd) {
 	fmt.Fprintf(os.Stdout, "+ %s\n", strings.Join(cmd.Args, " "))
+}
+
+func GetDroneDockerExecCmd() string {
+	if runtime.GOOS == "windows" {
+		return "C:/bin/drone-docker.exe"
+	}
+
+	return "drone-docker"
 }

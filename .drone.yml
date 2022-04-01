@@ -8,7 +8,7 @@ platform:
 
 steps:
 - name: vet
-  image: golang:1.13
+  image: golang:1.17.3
   commands:
   - go vet ./...
   environment:
@@ -18,7 +18,7 @@ steps:
     path: /go
 
 - name: test
-  image: golang:1.13
+  image: golang:1.17.3
   commands:
   - go test -cover ./...
   environment:
@@ -49,7 +49,7 @@ platform:
 
 steps:
 - name: build-push
-  image: golang:1.13
+  image: golang:1.17.3
   commands:
   - "go build -v -ldflags \"-X main.version=${DRONE_COMMIT_SHA:0:8}\" -a -tags netgo -o release/linux/amd64/drone-docker ./cmd/drone-docker"
   environment:
@@ -61,7 +61,7 @@ steps:
       - tag
 
 - name: build-tag
-  image: golang:1.13
+  image: golang:1.17.3
   commands:
   - "go build -v -ldflags \"-X main.version=${DRONE_TAG##v}\" -a -tags netgo -o release/linux/amd64/drone-docker ./cmd/drone-docker"
   environment:
@@ -72,25 +72,12 @@ steps:
     - tag
 
 - name: executable
-  image: golang:1.13
+  image: golang:1.17.3
   commands:
   - ./release/linux/amd64/drone-docker --help
 
-- name: dryrun
-  pull: always
-  image: plugins/docker:linux-amd64
-  settings:
-    daemon_off: false
-    dockerfile: docker/docker/Dockerfile.linux.amd64
-    dry_run: true
-    repo: immawanderer/drone-docker
-    tags: [linux-amd64, edge-dind]
-  when:
-    event: [push, pull_request]
-
 - name: publish
-  pull: always
-  image: plugins/docker:linux-amd64
+  image: plugins/docker:18
   settings:
     daemon_off: false
     dockerfile: docker/docker/Dockerfile.linux.amd64
